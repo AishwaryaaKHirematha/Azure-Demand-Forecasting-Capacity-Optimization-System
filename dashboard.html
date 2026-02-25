@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Azure Demand Forecasting Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --card:      #21263a;
+      --border:    #2e3450;
+      --accent:    #4f8ef7;
+      --green:     #34d399;
+      --red:       #f87171;
+      --amber:     #fbbf24;
+      --text:      #e2e8f0;
+      --muted:     #8892a4;
+      --font:      'Inter', sans-serif;
+      --radius:    12px;
+      --gap:       24px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px var(--gap);
+    }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+    header h1 span { color: var(--accent); }
+    .badge {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 16px; font-size: 0.8rem; color: var(--muted);
+    }
+
+    /* ── KPI grid ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--gap); margin-bottom: var(--gap);
+    }
+    .kpi {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 24px;
+      position: relative; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .kpi:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+    .kpi::before {
+      content: ''; position: absolute; inset: 0 0 auto 0;
+      height: 3px; background: var(--accent-color, var(--accent));
+    }
+    .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .kpi-value { font-size: 1.55rem; font-weight: 700; color: var(--value-color, var(--text)); }
+    .kpi-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Two-col layout ── */
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
+    @media(max-width: 900px) { .row { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+    .card h2 { font-size: 0.9rem; font-weight: 600; color: var(--muted); margin-bottom: 18px; text-transform: uppercase; letter-spacing: .06em; }
+    .card canvas { width: 100% !important; }
+
+    /* ── Region tabs ── */
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .tab-btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 0.8rem;
+      font-family: var(--font); transition: all .15s;
+    }
+    .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Action donut labels ── */
+    .action-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; margin-bottom: var(--gap); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th {
+      background: var(--surface); color: var(--muted); text-align: left;
+      padding: 10px 14px; font-weight: 600; text-transform: uppercase;
+      font-size: 0.7rem; letter-spacing: .05em; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(79,142,247,.05); }
+    .chip {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: .04em;
+    }
+    .chip-upscale   { background: rgba(248,113,113,.15); color: var(--red); }
+    .chip-downscale { background: rgba(52,211,153,.15);  color: var(--green); }
+    .chip-maintain  { background: rgba(251,191,36,.15);  color: var(--amber); }
+
+    footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 40px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>☁ Azure <span>Demand Forecasting</span> Dashboard</h1>
+  <span class="badge">Capacity Optimization System · 2026</span>
+</header>
+
+<!-- KPIs -->
+<div class="kpi-grid">
+  <div class="kpi" style="--accent-color:#4f8ef7">
+    <div class="kpi-label">Snapshots Analyzed</div>
+    <div class="kpi-value">500</div>
+    <div class="kpi-sub">Latest 500 rows evaluated</div>
+  </div>
+  <div class="kpi" style="--accent-color:#34d399;--value-color:#34d399">
+    <div class="kpi-label">Model MAE</div>
+    <div class="kpi-value">4178.6567</div>
+    <div class="kpi-sub">Naive baseline: 8277.5380</div>
+  </div>
+  <div class="kpi" style="--accent-color:#a78bfa;--value-color:#a78bfa">
+    <div class="kpi-label">Accuracy Gain vs Naive</div>
+    <div class="kpi-value">49.52%</div>
+    <div class="kpi-sub">Over last-value baseline</div>
+  </div>
+  <div class="kpi" style="--accent-color:#34d399;--value-color:#34d399">
+    <div class="kpi-label">Annual Savings Impact</div>
+    <div class="kpi-value">$5,942,174,607.84</div>
+    <div class="kpi-sub">$120M per 1% accuracy gain</div>
+  </div>
+  <div class="kpi" style="--accent-color:#fbbf24;--value-color:#fbbf24">
+    <div class="kpi-label">Simulation Savings</div>
+    <div class="kpi-value">$1,603,603,985.35</div>
+    <div class="kpi-sub">Waste reduction estimate</div>
+  </div>
+  <div class="kpi" style="--accent-color:#f87171">
+    <div class="kpi-label">UPSCALE Actions</div>
+    <div class="kpi-value" style="color:var(--red)">32</div>
+    <div class="kpi-sub">Nodes needing more capacity</div>
+  </div>
+  <div class="kpi" style="--accent-color:#34d399">
+    <div class="kpi-label">DOWNSCALE Actions</div>
+    <div class="kpi-value" style="color:var(--green)">52</div>
+    <div class="kpi-sub">Over-provisioned nodes</div>
+  </div>
+  <div class="kpi" style="--accent-color:#fbbf24">
+    <div class="kpi-label">MAINTAIN Actions</div>
+    <div class="kpi-value" style="color:var(--amber)">16</div>
+    <div class="kpi-sub">Within optimal threshold</div>
+  </div>
+</div>
+
+<!-- Charts row 1 -->
+<div class="row">
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Actual vs Forecast — by Region</h2>
+    <div class="tabs" id="regionTabs"></div>
+    <canvas id="lineChart" height="100"></canvas>
+  </div>
+</div>
+
+<!-- Charts row 2 -->
+<div class="row">
+  <div class="card">
+    <h2>Infrastructure Action Breakdown</h2>
+    <canvas id="donutChart" height="200"></canvas>
+    <div class="action-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>UPSCALE (32)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>DOWNSCALE (52)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>MAINTAIN (16)</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Recommended vs Provisioned Capacity</h2>
+    <canvas id="barChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card table-wrap">
+  <h2>Latest 20 Provisioning Actions</h2>
+  <table id="actionTable">
+    <thead>
+      <tr>
+        <th>Timestamp</th><th>Region</th><th>Service</th>
+        <th>Actual Usage</th><th>Forecast</th><th>Rec. Capacity</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<footer>Azure Demand Forecasting &amp; Capacity Optimization System · Auto-generated dashboard</footer>
+
+<script>
+const REGION_DATA = {"northeurope": {"timestamps": ["2024-12-22 00:00", "2024-12-22 00:00", "2024-12-23 00:00", "2024-12-23 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-25 00:00", "2024-12-26 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-30 00:00", "2024-12-30 00:00", "2024-12-31 00:00", "2024-12-31 00:00", "2024-12-31 00:00"], "actual": [5446.0, 20927.0, 7907.0, 8088.0, 27664.0, 12595.0, 6216.0, 22303.0, 11252.0, 27014.0, 18150.0, 6389.0, 24999.0, 20833.0, 29707.0, 24053.0, 5935.0, 22821.0, 4193.0, 21918.0, 18353.0, 26807.0, 19316.0, 14149.0, 21628.0], "forecast": [10613.62, 17528.53, 6046.72, 11642.1, 23948.77, 8940.51, 8391.25, 15401.37, 17865.74, 20318.72, 23107.58, 5630.25, 17361.35, 25105.71, 25203.85, 16442.27, 12955.82, 22358.89, 13403.4, 21501.44, 21098.08, 18399.75, 22235.97, 10165.69, 18621.47], "capacity": [12205.67, 20157.81, 6953.72, 13388.41, 27541.08, 10281.59, 9649.94, 17711.58, 20545.6, 23366.53, 26573.72, 6474.78, 19965.56, 28871.57, 28984.42, 18908.61, 14899.19, 25712.73, 15413.91, 24726.65, 24262.79, 21159.72, 25571.37, 11690.55, 21414.69]}, "centralindia": {"timestamps": ["2024-12-22 00:00", "2024-12-22 00:00", "2024-12-22 00:00", "2024-12-22 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-26 00:00", "2024-12-26 00:00", "2024-12-26 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-27 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-30 00:00", "2024-12-31 00:00", "2024-12-31 00:00"], "actual": [5066.0, 10670.0, 10737.0, 14418.0, 26920.0, 14542.0, 8386.0, 27069.0, 26355.0, 21025.0, 5951.0, 24966.0, 19553.0, 11085.0, 13792.0, 27933.0, 4984.0, 12865.0, 28859.0, 22816.0, 7989.0, 11986.0, 8452.0, 6071.0, 24249.0, 17939.0, 16042.0, 21020.0], "forecast": [10392.08, 12456.76, 15150.39, 18381.36, 19233.38, 12449.48, 11842.2, 26563.62, 15676.2, 13630.31, 15854.33, 23231.56, 11993.74, 12640.86, 12174.94, 26252.51, 14990.68, 22124.85, 23493.61, 17377.25, 20586.83, 16445.26, 8679.29, 5791.09, 18810.14, 22961.52, 11222.63, 21596.78], "capacity": [11950.89, 14325.27, 17422.94, 21138.56, 22118.38, 14316.9, 13618.53, 30548.16, 18027.63, 15674.85, 18232.48, 26716.29, 13792.8, 14536.99, 14001.18, 30190.39, 17239.28, 25443.58, 27017.65, 19983.83, 23674.85, 18912.04, 9981.19, 6659.76, 21631.66, 26405.74, 12906.02, 24836.29]}, "eastus": {"timestamps": ["2024-12-22 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-25 00:00", "2024-12-30 00:00", "2024-12-30 00:00", "2024-12-31 00:00"], "actual": [16155.0, 28018.0, 7542.0, 28940.0, 25133.0, 21815.0, 22537.0, 20941.0], "forecast": [15883.35, 22261.06, 15907.35, 22575.12, 14663.39, 14484.15, 24754.7, 22841.72], "capacity": [18265.85, 25600.22, 18293.45, 25961.39, 16862.9, 16656.77, 28467.9, 26267.98]}, "southeastasia": {"timestamps": ["2024-12-23 00:00", "2024-12-23 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-25 00:00", "2024-12-26 00:00", "2024-12-27 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-30 00:00", "2024-12-30 00:00", "2024-12-31 00:00", "2024-12-31 00:00", "2024-12-31 00:00"], "actual": [25584.0, 16274.0, 23379.0, 24298.0, 11138.0, 26160.0, 6535.0, 13948.0, 23795.0, 29817.0, 19893.0, 12186.0, 22795.0, 10525.0, 18642.0, 8147.0, 9451.0, 28803.0, 20840.0, 26174.0, 18678.0], "forecast": [20708.65, 17365.43, 17305.92, 24180.14, 15318.93, 25852.84, 11624.42, 18374.02, 18145.15, 19912.41, 14668.82, 17571.78, 26587.09, 18240.39, 13942.49, 13344.09, 8887.98, 26003.65, 12793.02, 26151.82, 15182.7], "capacity": [23814.94, 19970.24, 19901.81, 27807.16, 17616.77, 29730.77, 13368.08, 21130.12, 20866.92, 22899.27, 16869.15, 20207.54, 30575.15, 20976.44, 16033.86, 15345.7, 10221.18, 29904.19, 14711.98, 30074.59, 17460.1]}, "westus": {"timestamps": ["2024-12-24 00:00", "2024-12-24 00:00", "2024-12-24 00:00", "2024-12-25 00:00", "2024-12-26 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-28 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-29 00:00", "2024-12-30 00:00", "2024-12-30 00:00"], "actual": [5672.0, 15501.0, 8659.0, 27422.0, 11574.0, 17583.0, 17140.0, 13702.0, 4825.0, 9858.0, 7019.0, 17412.0, 7278.0, 13408.0, 19146.0, 21489.0, 21913.0, 13086.0], "forecast": [8275.84, 14880.5, 6804.03, 19006.85, 19886.15, 16729.19, 10512.46, 11785.01, 6383.99, 8809.58, 10134.45, 22237.61, 11160.67, 9145.51, 19059.65, 18867.07, 19690.19, 10712.22], "capacity": [9517.21, 17112.57, 7824.64, 21857.88, 22869.07, 19238.57, 12089.33, 13552.76, 7341.59, 10131.01, 11654.61, 25573.25, 12834.77, 10517.34, 21918.6, 21697.13, 22643.72, 12319.05]}};
+const TABLE_DATA  = [{"timestamp": "2024-12-29 00:00", "region": "westus", "service_type": "storage", "usage_units": 21489.0, "forecasted_usage": 18867.072, "recommended_capacity": 21697.133, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-29 00:00", "region": "northeurope", "service_type": "compute", "usage_units": 21918.0, "forecasted_usage": 21501.436, "recommended_capacity": 24726.65, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-30 00:00", "region": "westus", "service_type": "compute", "usage_units": 21913.0, "forecasted_usage": 19690.19, "recommended_capacity": 22643.717, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-30 00:00", "region": "northeurope", "service_type": "compute", "usage_units": 18353.0, "forecasted_usage": 21098.08, "recommended_capacity": 24262.791, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-30 00:00", "region": "eastus", "service_type": "storage", "usage_units": 21815.0, "forecasted_usage": 14484.149, "recommended_capacity": 16656.771, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-30 00:00", "region": "eastus", "service_type": "storage", "usage_units": 22537.0, "forecasted_usage": 24754.697, "recommended_capacity": 28467.9, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-30 00:00", "region": "centralindia", "service_type": "storage", "usage_units": 17939.0, "forecasted_usage": 22961.516, "recommended_capacity": 26405.742, "infrastructure_action": "UPSCALE"}, {"timestamp": "2024-12-30 00:00", "region": "northeurope", "service_type": "storage", "usage_units": 26807.0, "forecasted_usage": 18399.752, "recommended_capacity": 21159.715, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-30 00:00", "region": "southeastasia", "service_type": "compute", "usage_units": 9451.0, "forecasted_usage": 8887.981, "recommended_capacity": 10221.179, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-30 00:00", "region": "southeastasia", "service_type": "compute", "usage_units": 28803.0, "forecasted_usage": 26003.645, "recommended_capacity": 29904.191, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-30 00:00", "region": "westus", "service_type": "compute", "usage_units": 13086.0, "forecasted_usage": 10712.216, "recommended_capacity": 12319.048, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-31 00:00", "region": "northeurope", "service_type": "compute", "usage_units": 19316.0, "forecasted_usage": 22235.97, "recommended_capacity": 25571.365, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-31 00:00", "region": "northeurope", "service_type": "storage", "usage_units": 14149.0, "forecasted_usage": 10165.693, "recommended_capacity": 11690.547, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-31 00:00", "region": "southeastasia", "service_type": "compute", "usage_units": 26174.0, "forecasted_usage": 26151.82, "recommended_capacity": 30074.592, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-31 00:00", "region": "northeurope", "service_type": "compute", "usage_units": 21628.0, "forecasted_usage": 18621.469, "recommended_capacity": 21414.69, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-31 00:00", "region": "southeastasia", "service_type": "compute", "usage_units": 20840.0, "forecasted_usage": 12793.021, "recommended_capacity": 14711.975, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-31 00:00", "region": "eastus", "service_type": "storage", "usage_units": 20941.0, "forecasted_usage": 22841.723, "recommended_capacity": 26267.98, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-31 00:00", "region": "centralindia", "service_type": "storage", "usage_units": 16042.0, "forecasted_usage": 11222.629, "recommended_capacity": 12906.023, "infrastructure_action": "DOWNSCALE"}, {"timestamp": "2024-12-31 00:00", "region": "centralindia", "service_type": "compute", "usage_units": 21020.0, "forecasted_usage": 21596.777, "recommended_capacity": 24836.293, "infrastructure_action": "MAINTAIN"}, {"timestamp": "2024-12-31 00:00", "region": "southeastasia", "service_type": "storage", "usage_units": 18678.0, "forecasted_usage": 15182.699, "recommended_capacity": 17460.104, "infrastructure_action": "DOWNSCALE"}];
+
+// ── Colour palette ──────────────────────────────────────────────────────────
+const PALETTE = ['#4f8ef7','#34d399','#f87171','#a78bfa','#fbbf24','#38bdf8','#fb923c'];
+
+// ── Region tabs + line chart ────────────────────────────────────────────────
+const regions = Object.keys(REGION_DATA);
+let lineChart = null;
+let currentRegion = regions[0];
+
+function buildTabs() {
+  const tabsEl = document.getElementById('regionTabs');
+  regions.forEach((r, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = r.toUpperCase();
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentRegion = r;
+      updateLineChart(r);
+    };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function buildLineChart(region) {
+  const d = REGION_DATA[region];
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  lineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: d.timestamps,
+      datasets: [
+        { label: 'Actual Usage',          data: d.actual,   borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,.08)', tension: 0.3, pointRadius: 0, borderWidth: 2, fill: true },
+        { label: 'Forecasted Usage',      data: d.forecast, borderColor: '#34d399', backgroundColor: 'transparent',          tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [5,4] },
+        { label: 'Recommended Capacity',  data: d.capacity, borderColor: '#fbbf24', backgroundColor: 'transparent',          tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash: [2,3] },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#8892a4', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#8892a4', maxTicksLimit: 8 }, grid: { color: '#2e3450' } },
+        y: { ticks: { color: '#8892a4' }, grid: { color: '#2e3450' } }
+      }
+    }
+  });
+}
+
+function updateLineChart(region) {
+  const d = REGION_DATA[region];
+  lineChart.data.labels = d.timestamps;
+  lineChart.data.datasets[0].data = d.actual;
+  lineChart.data.datasets[1].data = d.forecast;
+  lineChart.data.datasets[2].data = d.capacity;
+  lineChart.update('active');
+}
+
+// ── Donut chart ─────────────────────────────────────────────────────────────
+function buildDonut() {
+  new Chart(document.getElementById('donutChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['UPSCALE', 'DOWNSCALE', 'MAINTAIN'],
+      datasets: [{ data: [32, 52, 16], backgroundColor: ['#f87171','#34d399','#fbbf24'], borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: {
+      cutout: '68%',
+      plugins: { legend: { display: false } },
+    }
+  });
+}
+
+// ── Bar chart: capacity comparison per region ────────────────────────────────
+function buildBar() {
+  const labels = [], rec = [], prov = [];
+  TABLE_DATA.forEach(r => {
+    if (!labels.includes(r.region)) {
+      labels.push(r.region);
+      rec.push(r.recommended_capacity);
+      prov.push(r.provisioned_capacity_allocated);
+    }
+  });
+  new Chart(document.getElementById('barChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Recommended', data: rec,  backgroundColor: 'rgba(79,142,247,.7)', borderRadius: 4 },
+        { label: 'Provisioned', data: prov, backgroundColor: 'rgba(248,113,113,.7)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8892a4', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#8892a4' }, grid: { color: '#2e3450' } },
+        y: { ticks: { color: '#8892a4' }, grid: { color: '#2e3450' } }
+      }
+    }
+  });
+}
+
+// ── Table ────────────────────────────────────────────────────────────────────
+function buildTable() {
+  const tbody = document.getElementById('tableBody');
+  TABLE_DATA.forEach(r => {
+    const chipClass = r.infrastructure_action === 'UPSCALE'   ? 'chip-upscale'
+                    : r.infrastructure_action === 'DOWNSCALE' ? 'chip-downscale'
+                    : 'chip-maintain';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.timestamp}</td>
+      <td>${r.region}</td>
+      <td>${r.service_type}</td>
+      <td>${r.usage_units?.toFixed(1)}</td>
+      <td>${r.forecasted_usage?.toFixed(1)}</td>
+      <td>${r.recommended_capacity?.toFixed(1)}</td>
+      <td><span class="chip ${chipClass}">${r.infrastructure_action}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+buildTabs();
+buildLineChart(currentRegion);
+buildDonut();
+buildBar();
+buildTable();
+</script>
+</body>
+</html>

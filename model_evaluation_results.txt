@@ -1,0 +1,8 @@
+=== Model Evaluation Results ===
+
+Random Forest  — MAE: 4086.6778  |  RMSE: 5051.4577
+XGBoost        — MAE: 4057.9134  |  RMSE: 4969.4559
+
+Selected Model : XGBoost
+Best MAE       : 4057.9134
+Best RMSE      : 4969.4559

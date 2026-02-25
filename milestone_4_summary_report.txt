@@ -1,0 +1,19 @@
+Azure Capacity Optimization — Summary Report
+==============================================
+
+Snapshots analyzed             : 500
+Model MAE                      : 4178.6567
+Naive Baseline MAE             : 8277.5380
+Accuracy Gain (vs Naive)       : 49.52%
+Proj. Annual Savings (Accuracy): $5,942,174,607.84
+Simulation Savings (Waste Red.): $1,603,603,985.35
+
+Action Summary:
+infrastructure_action
+DOWNSCALE    224
+UPSCALE      179
+MAINTAIN      97
+
+Detailed actions: see 'optimization_actions_report.csv'
+
+Retraining trigger: bias drift > 10% OR latency metric anomaly detected.
